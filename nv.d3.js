@@ -3,7 +3,7 @@
 var nv = window.nv || {};
 
 
-nv.version = '1.1.15b';
+nv.version = '1.1.15-beta-sm';
 nv.dev = true //set false when in production
 
 window.nv = nv;
