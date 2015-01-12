@@ -33,7 +33,7 @@ if (nv.dev) {
 }
 
 // ********************************************
-//  Public Core NV functions
+//  Public Core nv functions
 
 // Logs all arguments, and returns the last so you can test things in place
 // Note: in IE8 console.log is an object not a function, and if modernizr is used
@@ -130,7 +130,7 @@ containing the X-coordinate. It can also render a vertical line where the mouse 
 
 dispatch.elementMousemove is the important event to latch onto.  It is fired whenever the mouse moves over
 the rectangle. The dispatch is given one object which contains the mouseX/Y location.
-It also has 'pointXValue', which is the conversion of mouseX to the x-axis scale.
+It also has 'pointXValue', which is the conv2ersion of mouseX to the x-axis scale.
 */
 nv.interactiveGuideline = function() {
 	"use strict";
@@ -389,7 +389,7 @@ window.nv.tooltip.* also has various helper methods.
     var tip = nv.models.tooltip().gravity('w').distance(23)
                 .data(myDataObject);
 
-        tip();    //just invoke the returned function to render tooltip.
+        tip();    //just inv2oke the returned function to render tooltip.
   */
   window.nv.models.tooltip = function() {
         var content = null    //HTML contents of the tooltip.  If null, the content is generated via the data variable.
@@ -865,6 +865,16 @@ window.nv.tooltip.* also has various helper methods.
 
 })();
 
+nv.utils.bucket = function (bucket_interval, date_format) {
+  return function (d) {
+    if (d % bucket_interval > 0) {
+      var prev = d;
+      d = d - (d % bucket_interval);
+    }
+    return d3.time.format(date_format)(new Date(d));
+  };
+};
+
 nv.utils.windowSize = function() {
     // Sane defaults
     var size = {width: 640, height: 480};
@@ -1016,18 +1026,7 @@ nv.utils.optionsFunc = function(args) {
       }).bind(this));
     }
     return this;
-};
-
-nv.utils.bucket = function (bucket_interval, date_format) {
-  return function (d) {
-    if (d % bucket_interval > 0) {
-      var prev = d;
-      d = d - (d % bucket_interval);
-    }
-    return d3.time.format(date_format)(new Date(d));
-  };
-};
-nv.models.axis = function() {
+};nv.models.axis = function() {
   "use strict";
   //============================================================
   // Public Variables with Default Settings
@@ -3233,7 +3232,11 @@ nv.models.cumulativeLineChart = function() {
       if (!line.values) {
          return line;
       }
-      var v = lines.y()(line.values[idx], idx);
+      var indexValue = line.values[idx];
+      if (indexValue == null) {
+        return line;
+      }
+      var v = lines.y()(indexValue, idx);
 
       //TODO: implement check below, and disable series if series loses 100% or more cause divide by 0 issue
       if (v < -.95 && !noErrorCheck) {
@@ -4657,8 +4660,7 @@ nv.models.indentedTree = function() {
 
             d3.select(this).select('span')
               .attr('class', d3.functor(column.classes) )
-              .text(function(d) { return column.format ? column.format(d) :
-                                        (d[column.key] || '-') });
+              .text(function(d) { return column.format ? (d[column.key] ? column.format(d[column.key]) : '-') :  (d[column.key] || '-'); });
           });
 
         if  (column.showCount) {
@@ -5413,12 +5415,14 @@ nv.models.lineChart = function() {
     , yAxis = nv.models.axis()
     , legend = nv.models.legend()
     , interactiveLayer = nv.interactiveGuideline()
+    , controls = nv.models.legend()
     ;
 
   var margin = {top: 30, right: 20, bottom: 50, left: 60}
     , color = nv.utils.defaultColor()
     , width = null
     , height = null
+    , showControls = true
     , showLegend = true
     , showXAxis = true
     , showYAxis = true
@@ -5431,10 +5435,11 @@ nv.models.lineChart = function() {
       }
     , x
     , y
-    , state = {}
+    , state = { isArea:false}
     , defaultState = null
     , noData = 'No Data Available.'
     , dispatch = d3.dispatch('tooltipShow', 'tooltipHide', 'stateChange', 'changeState')
+    , controlWidth = function() { return showControls ? 180 : 0 }
     , transitionDuration = 250
     ;
 
@@ -5446,6 +5451,7 @@ nv.models.lineChart = function() {
     .orient((rightAlignYAxis) ? 'right' : 'left')
     ;
 
+  controls.updateState(false);
   //============================================================
 
 
@@ -5540,6 +5546,7 @@ nv.models.lineChart = function() {
       gEnter.append('g').attr('class', 'nv-y nv-axis');
       gEnter.append('g').attr('class', 'nv-linesWrap');
       gEnter.append('g').attr('class', 'nv-legendWrap');
+      gEnter.append('g').attr('class', 'nv-controlsWrap');
       gEnter.append('g').attr('class', 'nv-interactive');
 
       g.select("rect")
@@ -5549,7 +5556,7 @@ nv.models.lineChart = function() {
       // Legend
 
       if (showLegend) {
-        legend.width(availableWidth);
+        legend.width(availableWidth - controlWidth());
 
         g.select('.nv-legendWrap')
             .datum(data)
@@ -5561,8 +5568,8 @@ nv.models.lineChart = function() {
                              - margin.top - margin.bottom;
         }
 
-        wrap.select('.nv-legendWrap')
-            .attr('transform', 'translate(0,' + (-margin.top) +')')
+        g.select('.nv-legendWrap')
+            .attr('transform', 'translate(' + controlWidth() + ',' + (-margin.top) +')');
       }
 
       //------------------------------------------------------------
@@ -5646,6 +5653,7 @@ nv.models.lineChart = function() {
           chart.update();
       });
 
+      // interactive for the tooltips
       interactiveLayer.dispatch.on('elementMousemove', function(e) {
           lines.clearHighlights();
           var singlePoint, pointIndex, pointXLocation, allData = [];
@@ -5716,6 +5724,11 @@ nv.models.lineChart = function() {
           state.disabled = e.disabled;
         }
 
+        if (typeof e.myArea !== 'undefined') {
+          lines.myArea(e.myArea);
+          state.myArea = e.myArea;
+        }
+
         chart.update();
       });
 
@@ -5759,7 +5772,7 @@ nv.models.lineChart = function() {
   chart.yAxis = yAxis;
   chart.interactiveLayer = interactiveLayer;
 
-  d3.rebind(chart, lines, 'defined', 'isArea', 'x', 'y', 'size', 'xScale', 'yScale', 'xDomain', 'yDomain', 'xRange', 'yRange'
+  d3.rebind(chart, lines, 'defined', 'myArea', 'isArea', 'x', 'y', 'size', 'xScale', 'yScale', 'xDomain', 'yDomain', 'xRange', 'yRange'
     , 'forceX', 'forceY', 'interactive', 'clipEdge', 'clipVoronoi', 'useVoronoi','id', 'interpolate');
 
   chart.options = nv.utils.optionsFunc.bind(chart);
@@ -5789,6 +5802,12 @@ nv.models.lineChart = function() {
     if (!arguments.length) return color;
     color = nv.utils.getColor(_);
     legend.color(color);
+    return chart;
+  };
+
+  chart.showControls = function(_) {
+    if (!arguments.length) return showControls;
+    showControls = _;
     return chart;
   };
 

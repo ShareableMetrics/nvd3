@@ -151,3 +151,13 @@ nv.utils.optionsFunc = function(args) {
     }
     return this;
 };
+
+nv.utils.bucket = function (bucket_interval, date_format) {
+  return function (d) {
+    if (d % bucket_interval > 0) {
+      var prev = d;
+      d = d - (d % bucket_interval);
+    }
+    return d3.time.format(date_format)(new Date(d));
+  };
+};
